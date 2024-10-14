@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Illuminated - arXiv Image Extractor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Illuminated</h1>
+        <p>Extract images from arXiv publications</p>
+        <form id="arxiv-form">
+            <input type="text" id="arxiv-link" name="arxiv_link" placeholder="Enter arXiv link" required>
+            <button type="submit">Extract Images</button>
+        </form>
+        <div id="progress-bar"><div id="progress"></div></div>
+        <div id="status"></div>
+        <div id="download-links" style="display: none;">
+            <a href="#" id="download-images">Download Images</a>
+            <a href="#" id="download-json">Download JSON</a>
+        </div>
+        <div id="extracted-images"></div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#arxiv-form').submit(function(e) {
+                e.preventDefault();
+                $('#status').text('Initializing...');
+                $('#progress-bar').show();
+                $('#progress').width('0%');
+                $('#download-links').hide();
+                $('#extracted-images').empty();
+                
+                $.ajax({
+                    url: '/',
+                    method: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        updateProgress(100, response.message);
+                        if (response.status === 'success') {
+                            $('#download-links').show();
+                            $('#download-images').attr('href', '/download_images/' + response.arxiv_id);
+                            $('#download-json').attr('href', '/download_json/' + response.arxiv_id);
+                            displayExtractedImages(response.image_data);
+                        } else {
+                            $('#status').text('Error: ' + response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        updateProgress(100, 'An error occurred. Please try again.');
+                        console.error('Error:', error);
+                    }
+                });
+
+                // Simulate progress updates
+                let progress = 0;
+                const progressInterval = setInterval(function() {
+                    progress += 10;
+                    if (progress <= 90) {
+                        updateProgress(progress, 'Processing...');
+                    } else {
+                        clearInterval(progressInterval);
+                    }
+                }, 1000);
+            });
+
+            function updateProgress(progress, message) {
+                $('#progress').width(progress + '%');
+                $('#status').text(message);
+                if (progress === 100) {
+                    setTimeout(function() {
+                        $('#progress-bar').hide();
+                    }, 1000);
+                }
+            }
+
+            function displayExtractedImages(imageData) {
+                const container = $('#extracted-images');
+                imageData.forEach(function(image) {
+                    const imageElement = $('<div class="extracted-image"></div>');
+                    imageElement.append(`<h3>${image.figure_number}</h3>`);
+                    imageElement.append(`<img src="/uploads/${image.filename}" alt="${image.figure_number}">`);
+                    imageElement.append(`<p><strong>Caption:</strong> ${image.caption}</p>`);
+                    imageElement.append(`<p><strong>Original Filename:</strong> ${image.original_filename}</p>`);
+                    container.append(imageElement);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
